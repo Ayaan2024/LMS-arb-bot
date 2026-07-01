@@ -634,6 +634,33 @@ export default function MobileDashboard() {
     }
   };
 
+  const syncWalletToBackend = async (address: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/wallet/connect`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setWalletError(String(data?.error || `Wallet sync failed (${res.status})`));
+      }
+    } catch {
+      setWalletError("Wallet connected locally, but backend sync failed.");
+    }
+  };
+
+  const clearBackendWallet = async () => {
+    try {
+      await fetch(`${API_BASE}/wallet/disconnect`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+    } catch {
+      // Ignore backend disconnect errors; UI state is still cleared locally.
+    }
+  };
+
   const connectWallet = async () => {
     const ethereum = (window as any).ethereum;
     if (!ethereum) {
@@ -644,6 +671,9 @@ export default function MobileDashboard() {
     try {
       const accounts = await ethereum.request({ method: "eth_requestAccounts" });
       setWalletFromAccounts(accounts);
+      if (accounts && accounts.length > 0) {
+        await syncWalletToBackend(accounts[0]);
+      }
       const chain = await ethereum.request({ method: "eth_chainId" });
       setChainId(chain);
       setWalletProviderName(detectProviderName(ethereum));
@@ -652,7 +682,8 @@ export default function MobileDashboard() {
     }
   };
 
-  const disconnectWallet = () => {
+  const disconnectWallet = async () => {
+    await clearBackendWallet();
     setWalletAddress(null);
     setWalletStatus("Not connected");
     setChainId(null);
@@ -672,7 +703,14 @@ export default function MobileDashboard() {
       .then((accounts: string[]) => setWalletFromAccounts(accounts))
       .catch(() => {});
 
-    const handleAccountsChanged = (accounts: string[]) => setWalletFromAccounts(accounts);
+    const handleAccountsChanged = (accounts: string[]) => {
+      setWalletFromAccounts(accounts);
+      if (accounts && accounts.length > 0) {
+        void syncWalletToBackend(accounts[0]);
+      } else {
+        void clearBackendWallet();
+      }
+    };
     const handleChainChanged = (chain: string) => setChainId(chain);
 
     ethereum.on?.("accountsChanged", handleAccountsChanged);
@@ -1330,7 +1368,7 @@ export default function MobileDashboard() {
               </div>
 
               <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-                {!IS_PUBLIC_VIEW && (!walletAddress ? (
+                {!IS_PUBLIC_VIEW && (
                   <button onClick={connectWallet} style={{
                     flex: 1, border: "none", borderRadius: 10, cursor: "pointer",
                     background: "linear-gradient(135deg, #334155, #475569)",
@@ -1338,14 +1376,7 @@ export default function MobileDashboard() {
                   }}>
                     Connect Wallet
                   </button>
-                ) : (
-                  <button onClick={disconnectWallet} style={{
-                    flex: 1, border: "1px solid #7f1d1d", borderRadius: 10, cursor: "pointer",
-                    background: "#1f0d0d", color: "#fecaca", fontSize: 12, fontWeight: 700, padding: "10px 12px",
-                  }}>
-                    Disconnect Wallet
-                  </button>
-                ))}
+                )}
               </div>
 
               {!IS_PUBLIC_VIEW && (
