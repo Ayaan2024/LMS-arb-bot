@@ -661,6 +661,19 @@ export default function MobileDashboard() {
     }
   };
 
+  const openWalletBrowser = (target: "metamask" | "trust") => {
+    if (typeof window === "undefined") return;
+
+    const currentUrl = window.location.href;
+    if (target === "metamask") {
+      const path = `${window.location.host}${window.location.pathname}${window.location.search}`;
+      window.location.href = `https://metamask.app.link/dapp/${path}`;
+      return;
+    }
+
+    window.location.href = `https://link.trustwallet.com/open_url?coin_id=20000714&url=${encodeURIComponent(currentUrl)}`;
+  };
+
   const connectWallet = async () => {
     const ethereum = (window as any).ethereum;
     if (!ethereum) {
@@ -1382,6 +1395,41 @@ export default function MobileDashboard() {
                   </button>
                 )}
               </div>
+
+              {!IS_PUBLIC_VIEW && !walletAddress && (
+                <div style={{ display: "grid", gridTemplateColumns: twoColLayout, gap: 8, marginBottom: 10 }}>
+                  <button
+                    onClick={() => openWalletBrowser("metamask")}
+                    style={{
+                      border: "1px solid #2a3852",
+                      borderRadius: 10,
+                      cursor: "pointer",
+                      background: "#0c1424",
+                      color: "#cbd5e1",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      padding: "9px 10px",
+                    }}
+                  >
+                    Open in MetaMask
+                  </button>
+                  <button
+                    onClick={() => openWalletBrowser("trust")}
+                    style={{
+                      border: "1px solid #2a3852",
+                      borderRadius: 10,
+                      cursor: "pointer",
+                      background: "#0c1424",
+                      color: "#cbd5e1",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      padding: "9px 10px",
+                    }}
+                  >
+                    Open in Trust Wallet
+                  </button>
+                </div>
+              )}
 
               {!IS_PUBLIC_VIEW && (
                 <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8, marginBottom: 8 }}>
