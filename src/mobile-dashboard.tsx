@@ -90,7 +90,7 @@ async function fetchLiveDexPrices() {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
   try {
-    const response = await fetch(`${API_BASE}/api/prices?ts=${Date.now()}`, {
+    const response = await fetch(`${API_BASE}/prices?ts=${Date.now()}`, {
       cache: "no-store",
       signal: controller.signal,
     });
@@ -437,8 +437,8 @@ export default function MobileDashboard() {
   const syncBotActivity = async () => {
     try {
       const [tradesRes, logsRes] = await Promise.all([
-        fetch(`${API_BASE}/api/trades?limit=20`),
-        fetch(`${API_BASE}/api/logs?limit=50`),
+        fetch(`${API_BASE}/trades?limit=20`),
+        fetch(`${API_BASE}/logs?limit=50`),
       ]);
 
       if (tradesRes.ok) {
@@ -490,7 +490,7 @@ export default function MobileDashboard() {
 
   const syncBotStatus = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/status`);
+      const res = await fetch(`${API_BASE}/status`);
       if (!res.ok) return;
 
       const data = await res.json();

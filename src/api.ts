@@ -11,18 +11,18 @@ const API_BASE: string =
 export const API = {
   // Status endpoints
   async getStatus() {
-    const res = await fetch(`${API_BASE}/api/status`);
+    const res = await fetch(`${API_BASE}/status`);
     return res.json();
   },
 
   async getHealth() {
-    const res = await fetch(`${API_BASE}/api/health`);
+    const res = await fetch(`${API_BASE}/health`);
     return res.json();
   },
 
   // Bot control
   async startBot(startingCapital = 50, dryRun = true) {
-    const res = await fetch(`${API_BASE}/api/bot/start`, {
+    const res = await fetch(`${API_BASE}/bot/start`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ starting_capital: startingCapital, dry_run: dryRun }),
@@ -31,7 +31,7 @@ export const API = {
   },
 
   async stopBot() {
-    const res = await fetch(`${API_BASE}/api/bot/stop`, {
+    const res = await fetch(`${API_BASE}/bot/stop`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
     });
@@ -40,18 +40,18 @@ export const API = {
 
   // Trades and logs
   async getTrades(limit = 20) {
-    const res = await fetch(`${API_BASE}/api/trades?limit=${limit}`);
+    const res = await fetch(`${API_BASE}/trades?limit=${limit}`);
     return res.json();
   },
 
   async getLogs(limit = 50) {
-    const res = await fetch(`${API_BASE}/api/logs?limit=${limit}`);
+    const res = await fetch(`${API_BASE}/logs?limit=${limit}`);
     return res.json();
   },
 
   // Wallet
   async connectWallet(walletAddress, signature = null) {
-    const res = await fetch(`${API_BASE}/api/wallet/connect`, {
+    const res = await fetch(`${API_BASE}/wallet/connect`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ address: walletAddress, signature }),
@@ -60,7 +60,7 @@ export const API = {
   },
 
   async disconnectWallet() {
-    const res = await fetch(`${API_BASE}/api/wallet/disconnect`, {
+    const res = await fetch(`${API_BASE}/wallet/disconnect`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
     });
@@ -68,13 +68,13 @@ export const API = {
   },
 
   async getCurrentWallet() {
-    const res = await fetch(`${API_BASE}/api/wallet/current`);
+    const res = await fetch(`${API_BASE}/wallet/current`);
     return res.json();
   },
 
   // Trade simulation
   async simulateTrade(buyDex, sellDex, tokenIn, tokenOut, amount) {
-    const res = await fetch(`${API_BASE}/api/trade/simulate`, {
+    const res = await fetch(`${API_BASE}/trade/simulate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
