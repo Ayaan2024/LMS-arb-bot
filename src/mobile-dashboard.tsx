@@ -1753,36 +1753,11 @@ export default function MobileDashboard() {
               </div>
             )}
 
-            <div style={{
-              display: "grid", gridTemplateColumns: twoColLayout,
-              gap: 8,
-            }}>
-              {[
-                { label: "MEV Protection",   icon: "🛡️" },
-                { label: "Flash Loans",       icon: "⚡" },
-                { label: "Rug Detection",     icon: "🚨" },
-                { label: "Auto Restart",      icon: "🔁" },
-                { label: "Depth Analysis",    icon: "💧" },
-                { label: "Bot Detector",      icon: "🤖" },
-              ].map(item => (
-                <div key={item.label} style={{
-                  background: running ? "#0a1a0a" : "#0d1424",
-                  border: `1px solid ${running ? "#166534" : "#1e293b"}`,
-                  borderRadius: 10, padding: "10px 12px",
-                  display: "flex", alignItems: "center", gap: 8,
-                  fontSize: 12,
-                  color: running ? "#4ade80" : "#334155",
-                }}>
-                  <span>{item.icon}</span>
-                  <span>{item.label}</span>
-                </div>
-              ))}
-            </div>
           </div>
         )}
 
         {tab === "trades" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: isDesktop ? 10 : 14 }}>
             <div style={{
               background: "linear-gradient(135deg, rgba(13,20,36,0.92), rgba(10,18,34,0.92))",
               border: "1px solid #1e293b",
@@ -1805,19 +1780,26 @@ export default function MobileDashboard() {
                 <div key={t.id} className="trade-row" style={{
                   background: t.isFlash ? "#0d0020" : t.isTri ? "#0d1a00" : "#0d1424",
                   border: `1px solid ${t.isFlash ? "#581c87" : t.isTri ? "#166534" : "#1e293b"}`,
-                  borderRadius: 14, padding: "14px 16px",
+                  borderRadius: 14, padding: isDesktop ? "14px 16px" : "16px 14px",
                 }}>
                   {/* Row 1: pair, badges, actual profit */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 8 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontWeight: 800, fontSize: 15 }}>{t.pair}</span>
+                      <span style={{ fontWeight: 800, fontSize: isDesktop ? 15 : 16 }}>{t.pair}</span>
                       {t.isFlash && <span style={{ fontSize: 10, background: "#581c87", color: "#e9d5ff", padding: "2px 6px", borderRadius: 4 }}>⚡ FLASH</span>}
                       {t.isTri  && <span style={{ fontSize: 10, background: "#166534", color: "#bbf7d0", padding: "2px 6px", borderRadius: 4 }}>🔺 TRI</span>}
                     </div>
-                    <span style={{ fontWeight: 900, fontSize: 17, color: "#4ade80" }}>+${t.profit}</span>
+                    <span style={{ fontWeight: 900, fontSize: isDesktop ? 17 : 19, color: "#4ade80", whiteSpace: "nowrap" }}>+${t.profit}</span>
                   </div>
                   {/* Row 2: route, gap, time */}
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#475569", marginBottom: 8 }}>
+                  <div style={{
+                    display: "grid",
+                    gridTemplateColumns: isDesktop ? "1fr auto auto" : "1fr",
+                    gap: isDesktop ? 8 : 4,
+                    fontSize: isDesktop ? 11 : 12,
+                    color: "#64748b",
+                    marginBottom: 10,
+                  }}>
                     <span>{t.buy.replace("Swap","")} → {t.sell.replace("Swap","")}</span>
                     <span>+{t.gap}% gap</span>
                     <span>{t.time}</span>
@@ -1827,17 +1809,17 @@ export default function MobileDashboard() {
                     display: "grid", gridTemplateColumns: twoColLayout,
                     gap: 6, marginBottom: 6,
                   }}>
-                    <div style={{ background: "#080c18", border: "1px solid #1e293b", borderRadius: 8, padding: "6px 10px" }}>
+                    <div style={{ background: "#080c18", border: "1px solid #1e293b", borderRadius: 8, padding: isDesktop ? "6px 10px" : "8px 10px" }}>
                       <div style={{ fontSize: 9, color: "#64748b", marginBottom: 2 }}>EST. PROFIT</div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#fbbf24" }}>${t.estProfit}</div>
+                      <div style={{ fontSize: isDesktop ? 13 : 14, fontWeight: 700, color: "#fbbf24" }}>${t.estProfit}</div>
                     </div>
-                    <div style={{ background: "#080c18", border: "1px solid #166534", borderRadius: 8, padding: "6px 10px" }}>
+                    <div style={{ background: "#080c18", border: "1px solid #166534", borderRadius: 8, padding: isDesktop ? "6px 10px" : "8px 10px" }}>
                       <div style={{ fontSize: 9, color: "#64748b", marginBottom: 2 }}>ACTUAL PROFIT</div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#4ade80" }}>${t.profit}</div>
+                      <div style={{ fontSize: isDesktop ? 13 : 14, fontWeight: 700, color: "#4ade80" }}>${t.profit}</div>
                     </div>
                   </div>
                   {/* Row 4: cost breakdown */}
-                  <div style={{ display: "flex", gap: 10, fontSize: 10, color: "#475569" }}>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: isDesktop ? 10 : 8, fontSize: isDesktop ? 10 : 11, color: "#64748b" }}>
                     <span>⛽ Gas: <strong style={{ color: "#94a3b8" }}>${t.gasCost}</strong></span>
                     {t.isFlash && <span>⚡ FL fee: <strong style={{ color: "#94a3b8" }}>${t.flashFee}</strong></span>}
                     <span>↔ Slip: <strong style={{ color: "#94a3b8" }}>${t.slippage}</strong></span>
@@ -2108,14 +2090,14 @@ export default function MobileDashboard() {
         )}
 
         {tab === "logs" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: isDesktop ? 8 : 12 }}>
             <div style={{
               background: "linear-gradient(135deg, rgba(13,20,36,0.92), rgba(10,18,34,0.92))",
               border: "1px solid #1e293b",
               borderRadius: 16,
               padding: "14px 16px",
             }}>
-              <div style={{ fontSize: 18, fontWeight: 800, color: "#f8fafc" }}>↓ Withdraw</div>
+              <div style={{ fontSize: isDesktop ? 18 : 20, fontWeight: 800, color: "#f8fafc" }}>↓ Withdraw</div>
               <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>Connect a wallet, manage withdrawals, and review bot activity logs.</div>
             </div>
 
@@ -2123,7 +2105,7 @@ export default function MobileDashboard() {
               background: "#090e1a",
               border: "1px solid #1f2a45",
               borderRadius: 18,
-              padding: 16,
+              padding: isDesktop ? 16 : 18,
               marginBottom: 6,
             }}>
               <div style={{ textAlign: "center", marginBottom: 12 }}>
@@ -2140,7 +2122,7 @@ export default function MobileDashboard() {
                 }}>
                   🛡
                 </div>
-                <div style={{ fontSize: 28, fontWeight: 800, color: "#f8fafc" }}>Connect Wallet</div>
+                <div style={{ fontSize: isDesktop ? 28 : 30, fontWeight: 800, color: "#f8fafc" }}>Connect Wallet</div>
                 <div style={{
                   background: "#0f1a33",
                   border: "1px solid #1e3a5f",
@@ -2161,10 +2143,11 @@ export default function MobileDashboard() {
                   borderRadius: 10,
                   background: "#1f2937",
                   color: "#f8fafc",
-                  padding: "12px 14px",
-                  fontSize: 22,
+                  padding: isDesktop ? "12px 14px" : "13px 14px",
+                  fontSize: isDesktop ? 22 : 20,
                   textAlign: "left",
                   cursor: "pointer",
+                  minHeight: 48,
                 }}>
                   <span style={{ fontSize: 18, marginRight: 8 }}>🦊</span> MetaMask
                   <span style={{ float: "right", fontSize: 11, color: "#94a3b8", border: "1px solid #334155", borderRadius: 999, padding: "2px 8px" }}>Mobile</span>
@@ -2175,10 +2158,11 @@ export default function MobileDashboard() {
                   borderRadius: 10,
                   background: "#1f2937",
                   color: "#f8fafc",
-                  padding: "12px 14px",
-                  fontSize: 22,
+                  padding: isDesktop ? "12px 14px" : "13px 14px",
+                  fontSize: isDesktop ? 22 : 20,
                   textAlign: "left",
                   cursor: "pointer",
+                  minHeight: 48,
                 }}>
                   <span style={{ fontSize: 18, marginRight: 8 }}>🔵</span> Trust Wallet
                   <span style={{ float: "right", fontSize: 11, color: "#94a3b8", border: "1px solid #334155", borderRadius: 999, padding: "2px 8px" }}>Mobile</span>
@@ -2210,10 +2194,11 @@ export default function MobileDashboard() {
             ) : (
               logs.map(log => (
                 <div key={log.id} style={{
-                  padding: "10px 14px", borderRadius: 12,
+                  padding: isDesktop ? "10px 14px" : "12px 14px", borderRadius: 12,
                   background: log.type === "flash" ? "#0d0020" : log.type === "success" ? "#0a1a0a" : log.type === "tri" ? "#0d1a00" : "#0d1424",
                   borderLeft: `3px solid ${log.type === "flash" ? "#a855f7" : log.type === "success" ? "#4ade80" : log.type === "tri" ? "#22c55e" : "#1e293b"}`,
-                  fontSize: 12,
+                  fontSize: isDesktop ? 12 : 13,
+                  lineHeight: 1.5,
                   color: log.type === "flash" ? "#e9d5ff" : log.type === "success" ? "#bbf7d0" : "#94a3b8",
                 }}>
                   <span style={{ color: "#334155", marginRight: 8, fontSize: 10 }}>{log.time}</span>
