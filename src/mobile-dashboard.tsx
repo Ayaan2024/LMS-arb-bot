@@ -27,16 +27,16 @@ const DEMO_PROFIT_THRESHOLD_PCT = 0.2;
 const FLASH_LOAN_THRESHOLD_PCT = 1.0;
 const MAX_REASONABLE_SPREAD_PCT = 2;
 const DEXES = [
-  { name: "PancakeSwap", color: "#F0B90B", short: "CAKE" },
-  { name: "Biswap",      color: "#4C8EF7", short: "BSW"  },
-  { name: "ApeSwap",     color: "#A855F7", short: "APE"  },
+  { name: "PancakeSwap", color: "#F59E0B", short: "CAKE" },
+  { name: "Biswap",      color: "#14B8A6", short: "BSW"  },
+  { name: "ApeSwap",     color: "#38BDF8", short: "APE"  },
 ];
 
 const PHASES = [
   {
     label: "Scanning DEX Pools",
     icon: "🔍",
-    color: "#4ade80",
+    color: "#14b8a6",
     detail: "Fetch all pool data from PancakeSwap, Biswap and ApeSwap",
   },
   {
@@ -54,13 +54,13 @@ const PHASES = [
   {
     label: "Evaluating Liquidity Depth",
     icon: "💧",
-    color: "#34d399",
+    color: "#2dd4bf",
     detail: "Validate liquidity and reject shallow pools",
   },
   {
     label: "Multi-Hop Path Analysis",
     icon: "🔄",
-    color: "#a78bfa",
+    color: "#14b8a6",
     detail: "Analyze multi-hop routes and find the best execution path",
   },
   {
@@ -317,7 +317,7 @@ export default function MobileDashboard() {
         position: "relative" as const,
       };
 
-  const contentPadding = isDesktop ? "24px 28px 40px" : "16px 20px 80px";
+  const contentPadding = isDesktop ? "24px 28px 44px" : "18px 16px 96px";
   const twoColLayout = isDesktop ? "1fr 1fr" : "1fr";
   const threeColLayout = isDesktop ? "1fr 1fr 1fr" : "1fr";
 
@@ -1042,12 +1042,15 @@ export default function MobileDashboard() {
                   width: "100%",
                   padding: "12px 14px",
                   borderRadius: 12,
-                  border: `1px solid ${tab === item.id ? "#38bdf8" : "#1e293b"}`,
-                  background: tab === item.id ? "rgba(14, 165, 233, 0.12)" : "#0b1220",
-                  color: tab === item.id ? "#e0f2fe" : "#94a3b8",
+                  border: `1px solid ${tab === item.id ? "#14b8a6" : "#1f2a3a"}`,
+                  background: tab === item.id
+                    ? "linear-gradient(135deg, #0f766e, #14b8a6)"
+                    : "linear-gradient(135deg, #0f172a, #111827)",
+                  color: tab === item.id ? "#ecfeff" : "#94a3b8",
                   cursor: "pointer",
                   textAlign: "left",
                   fontWeight: 700,
+                  boxShadow: tab === item.id ? "0 6px 18px rgba(20,184,166,0.28)" : "none",
                 }}
               >
                 <span style={{ fontSize: 18 }}>{item.icon}</span>
@@ -1116,7 +1119,13 @@ export default function MobileDashboard() {
         borderBottom: "1px solid #182233",
         background: "linear-gradient(180deg, rgba(9,14,28,0.95), rgba(9,14,28,0.65))",
       }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: isDesktop ? "center" : "flex-start",
+          flexDirection: isDesktop ? "row" : "column",
+          gap: isDesktop ? 0 : 12,
+        }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{
               width: 54,
@@ -1135,23 +1144,29 @@ export default function MobileDashboard() {
             </div>
             <div>
               <div style={{
-                fontSize: 24, fontWeight: 900,
-                background: "linear-gradient(90deg, #38bdf8, #a78bfa)",
+                fontSize: isDesktop ? 24 : 20, fontWeight: 900,
+                background: "linear-gradient(90deg, #14b8a6, #f59e0b)",
                 WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
               }}>LMS Abritage bot</div>
-              <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+              <div style={{ fontSize: 12, color: "#9fb0c2", marginTop: 2 }}>
                 Unified cross-exchange arbitrage dashboard
               </div>
             </div>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+          <div style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: isDesktop ? "flex-end" : "flex-start",
+            gap: 6,
+            width: isDesktop ? "auto" : "100%",
+          }}>
             <div style={{
               display: "flex", alignItems: "center", gap: 6,
               padding: "4px 12px", borderRadius: 20,
-              background: running ? "#052e16" : "#0f172a",
-              border: `1px solid ${running ? "#16a34a" : "#1e293b"}`,
+              background: running ? "#042f2e" : "#0f172a",
+              border: `1px solid ${running ? "#14b8a6" : "#1e293b"}`,
               fontSize: 12, fontWeight: 700,
-              color: running ? "#4ade80" : "#475569",
+              color: running ? "#5eead4" : "#64748b",
             }}>
               <Pulse active={running} />
               {running ? "LIVE" : "IDLE"}
@@ -1188,27 +1203,27 @@ export default function MobileDashboard() {
 
       <div style={{ flex: 1, overflowY: "auto", padding: contentPadding }}>
         {tab === "home" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: isDesktop ? 14 : 18 }}>
 
             <div style={{
-              background: "#0d1424",
-              border: "1px solid #1e293b",
-              borderRadius: 16,
-              padding: 16,
+              background: "linear-gradient(180deg, #0f172a, #0b1220)",
+              border: "1px solid #223044",
+              borderRadius: 18,
+              padding: isDesktop ? 16 : 18,
             }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: "#38bdf8" }}>Active AI Trading Cycle</div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: "#2dd4bf" }}>Active AI Trading Cycle</div>
                   <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>Powered by LMS engine · Cycle #{cycleDay}</div>
                 </div>
                 <div style={{
-                  color: running ? "#4ade80" : "#94a3b8",
-                  border: `1px solid ${running ? "#166534" : "#334155"}`,
+                  color: running ? "#5eead4" : "#94a3b8",
+                  border: `1px solid ${running ? "#0f766e" : "#334155"}`,
                   borderRadius: 10,
-                  padding: "4px 10px",
+                  padding: "5px 10px",
                   fontSize: 11,
                   fontWeight: 700,
-                  background: running ? "#052e16" : "#0f172a",
+                  background: running ? "#042f2e" : "#0f172a",
                 }}>
                   {running ? "In Progress" : "Idle"}
                 </div>
@@ -1256,12 +1271,12 @@ export default function MobileDashboard() {
                         animation: running ? "enginePulse 1.2s ease-in-out infinite" : "none",
                       }} />
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "#f8fafc" }}>Bot Engine</div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: "#f8fafc" }}>Bot Engine</div>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: running ? "#4ade80" : "#64748b" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: running ? "#5eead4" : "#64748b" }}>
                     <Pulse active={running} />
                     <span>{running ? "LIVE" : "IDLE"}</span>
-                    <span style={{ color: "#94a3b8" }}>{formatUptime()}</span>
+                    <span style={{ color: "#f59e0b", fontWeight: 800 }}>{formatUptime()}</span>
                   </div>
                 </div>
 
@@ -1270,16 +1285,16 @@ export default function MobileDashboard() {
 
 
                 {DEXES.map((dex) => (
-                  <div key={dex.name} style={{ marginBottom: 8 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3, fontSize: 12 }}>
-                      <span style={{ color: "#94a3b8" }}>{dex.name}</span>
-                      <span style={{ color: dex.color, fontWeight: 700 }}>
+                  <div key={dex.name} style={{ marginBottom: 12 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, fontSize: 12 }}>
+                      <span style={{ color: "#b7c7d8", fontWeight: 700 }}>{dex.name}</span>
+                      <span style={{ color: dex.color, fontWeight: 800 }}>
                         {running ? `${dexFetchProgress[dex.name]}%` : "0%"}
                       </span>
                     </div>
-                    <div style={{ height: 6, borderRadius: 999, background: "#111827" }}>
+                    <div style={{ height: 8, borderRadius: 999, background: "#111827" }}>
                       <div style={{
-                        height: 6,
+                        height: 8,
                         borderRadius: 999,
                         width: `${running ? dexFetchProgress[dex.name] : 0}%`,
                         background: dex.color,
@@ -1435,12 +1450,12 @@ export default function MobileDashboard() {
             )}
 
             <div style={{
-              background: "#0d1424", border: "1px solid #1e293b",
-              borderRadius: 16, padding: 16,
+              background: "linear-gradient(180deg, #0f172a, #0b1220)", border: "1px solid #223044",
+              borderRadius: 18, padding: isDesktop ? 16 : 18,
             }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: "#38bdf8" }}>Active Subscription</div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: "#2dd4bf" }}>Active Subscription</div>
                   <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>Wallet & Withdraw controls</div>
                 </div>
                 <span style={{ fontSize: 10, color: "#475569" }}>{walletProviderName}</span>
@@ -1462,10 +1477,10 @@ export default function MobileDashboard() {
                     background: "#080c18",
                     border: "1px solid #1e293b",
                     borderRadius: 10,
-                    padding: "10px 12px",
+                    padding: isDesktop ? "10px 12px" : "12px 12px",
                   }}>
                     <div style={{ fontSize: 10, color: "#64748b", marginBottom: 4 }}>{item.label}</div>
-                    <div style={{ fontSize: 16, fontWeight: 800, color: item.color }}>{item.value}</div>
+                    <div style={{ fontSize: isDesktop ? 16 : 22, lineHeight: 1.15, fontWeight: 900, color: item.color }}>{item.value}</div>
                   </div>
                 ))}
               </div>
@@ -1712,12 +1727,12 @@ export default function MobileDashboard() {
                   borderRadius: 16, border: "none",
                   background: running
                     ? "linear-gradient(135deg, #7f1d1d, #991b1b)"
-                    : "linear-gradient(135deg, #b45309, #c2410c)",
+                    : "linear-gradient(135deg, #0f766e, #14b8a6)",
                   color: "#fff", fontSize: 16, fontWeight: 800,
                   cursor: "pointer", fontFamily: "inherit",
                   boxShadow: running
                     ? "0 4px 20px #ef444433"
-                    : "0 4px 20px #f9731633",
+                    : "0 4px 20px rgba(20,184,166,0.33)",
                   letterSpacing: "0.04em",
                 }}>
                   {running ? "⏹  Stop Bot" : "▶  Start Real Mode"}
@@ -2215,26 +2230,33 @@ export default function MobileDashboard() {
           position: "fixed", bottom: 0, left: "50%",
           transform: "translateX(-50%)",
           width: "100%", maxWidth: 430,
-          background: "linear-gradient(180deg, rgba(13,20,36,0.92), rgba(8,12,24,0.98))",
-          borderTop: "1px solid #1e293b",
-          display: "flex", padding: "10px 0 20px",
+          background: "linear-gradient(180deg, rgba(12,18,33,0.94), rgba(8,12,24,0.99))",
+          borderTop: "1px solid #1f2c40",
+          display: "flex", gap: 8, padding: "10px 10px 16px",
           backdropFilter: "blur(12px)",
           zIndex: 100,
         }}>
           {navItems.map((item) => (
             <button key={item.id} onClick={() => setTab(item.id)} style={{
-              flex: 1, background: "none", border: "none",
+              flex: 1,
+              border: `1px solid ${tab === item.id ? "#14b8a6" : "#1f2a3a"}`,
+              background: tab === item.id
+                ? "linear-gradient(135deg, #0f766e, #14b8a6)"
+                : "linear-gradient(135deg, #0f172a, #111827)",
+              borderRadius: 12,
               cursor: "pointer", display: "flex",
               flexDirection: "column", alignItems: "center", gap: 3,
               minHeight: 52,
+              padding: "6px 4px",
+              boxShadow: tab === item.id ? "0 6px 16px rgba(20,184,166,0.30)" : "none",
             }}>
-              <span style={{ fontSize: 24, filter: tab === item.id ? "drop-shadow(0 0 8px rgba(56,189,248,0.35))" : "none" }}>{item.icon}</span>
+              <span style={{ fontSize: 24, filter: tab === item.id ? "drop-shadow(0 0 8px rgba(45,212,191,0.45))" : "none" }}>{item.icon}</span>
               <span style={{
                 fontSize: 11, fontWeight: 700, fontFamily: "inherit",
-                color: tab === item.id ? "#38bdf8" : "#64748b",
+                color: tab === item.id ? "#ecfeff" : "#94a3b8",
               }}>{item.label}</span>
               {tab === item.id && (
-                <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#38bdf8" }} />
+                <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#99f6e4" }} />
               )}
             </button>
           ))}
