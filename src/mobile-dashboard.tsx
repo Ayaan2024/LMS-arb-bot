@@ -562,7 +562,7 @@ export default function MobileDashboard() {
 
   const handleBotToggle = async () => {
     try {
-      const endpoint = running ? "/api/bot/stop" : "/api/bot/start";
+      const endpoint = running ? "/bot/stop" : "/bot/start";
 
       const res = await fetch(`${API_BASE}${endpoint}`, running
         ? { method: "POST", headers: { "Content-Type": "application/json" } }
