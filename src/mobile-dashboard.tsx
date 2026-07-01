@@ -634,12 +634,12 @@ export default function MobileDashboard() {
     }
   };
 
-  const syncWalletToBackend = async (address: string) => {
+  const syncWalletToBackend = async (address: string, chain: string | null = null) => {
     try {
       const res = await fetch(`${API_BASE}/wallet/connect`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address }),
+        body: JSON.stringify({ address, chain_id: chain ?? chainId }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
@@ -688,11 +688,11 @@ export default function MobileDashboard() {
     try {
       const accounts = await ethereum.request({ method: "eth_requestAccounts" });
       setWalletFromAccounts(accounts);
-      if (accounts && accounts.length > 0) {
-        await syncWalletToBackend(accounts[0]);
-      }
       const chain = await ethereum.request({ method: "eth_chainId" });
       setChainId(chain);
+      if (accounts && accounts.length > 0) {
+        await syncWalletToBackend(accounts[0], chain);
+      }
       setWalletProviderName(detectProviderName(ethereum));
     } catch (error: any) {
       setWalletError(error?.message || "Connection rejected");
@@ -717,18 +717,30 @@ export default function MobileDashboard() {
     setWalletProviderName(detectProviderName(ethereum));
 
     ethereum.request({ method: "eth_accounts" })
-      .then((accounts: string[]) => setWalletFromAccounts(accounts))
+      .then(async (accounts: string[]) => {
+        setWalletFromAccounts(accounts);
+        if (accounts && accounts.length > 0) {
+          const chain = await ethereum.request({ method: "eth_chainId" }).catch(() => null);
+          if (chain) setChainId(chain);
+          void syncWalletToBackend(accounts[0], chain);
+        }
+      })
       .catch(() => {});
 
     const handleAccountsChanged = (accounts: string[]) => {
       setWalletFromAccounts(accounts);
       if (accounts && accounts.length > 0) {
-        void syncWalletToBackend(accounts[0]);
+        void syncWalletToBackend(accounts[0], chainId);
       } else {
         void clearBackendWallet();
       }
     };
-    const handleChainChanged = (chain: string) => setChainId(chain);
+    const handleChainChanged = (chain: string) => {
+      setChainId(chain);
+      if (walletAddress) {
+        void syncWalletToBackend(walletAddress, chain);
+      }
+    };
 
     ethereum.on?.("accountsChanged", handleAccountsChanged);
     ethereum.on?.("chainChanged", handleChainChanged);

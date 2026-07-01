@@ -444,6 +444,7 @@ bot_state = {
     "recent_trades": [],
     "logs": [],
     "wallet_connected": None,
+    "wallet_chain_id": None,
     "starting_capital": 50.0,
     "gas_fee_paid": 50.0,
     "subscription_capital": 50.0,
@@ -689,8 +690,15 @@ def start_bot():
         requested_trade_mode = str(data.get("trade_execution_mode", TRADE_EXECUTION_MODE)).strip().lower()
         if requested_trade_mode not in {"both", "demo_only", "flash_only"}:
             requested_trade_mode = TRADE_EXECUTION_MODE
-        # Demo API mode: always simulate, never execute real-money trades.
-        dry_run = True
+        dry_run = bool(requested_dry_run)
+
+        if not dry_run:
+            connected_wallet = bot_state.get("wallet_connected")
+            chain_id = bot_state.get("wallet_chain_id")
+            if not connected_wallet:
+                return jsonify({"success": False, "error": "Connect wallet before starting live mode"}), 400
+            if chain_id != 56:
+                return jsonify({"success": False, "error": "Switch wallet to BSC Mainnet (chain 56) before live mode"}), 400
         
         bot_state["running"] = True
         bot_state["cycle_start"] = datetime.now().isoformat()
@@ -707,7 +715,7 @@ def start_bot():
         bot_state["recent_trades"] = []
         bot_state["dry_run"] = dry_run
         bot_state["trade_execution_mode"] = requested_trade_mode
-        bot_state["last_trade_mode"] = "demo"
+        bot_state["last_trade_mode"] = "demo" if dry_run else "flash"
         _reset_engine_state("Starting scan pipeline...")
         _recompute_subscription_fields()
         
@@ -715,11 +723,9 @@ def start_bot():
         # using subprocess.Popen(...) and monitor its output
         bot_running_event.set()
         
-        if requested_dry_run is False:
-            add_log("Requested live mode ignored; demo server enforces dry_run=True", "info")
         add_log(
-            f"Bot started in DEMO mode: capital=${bot_state['starting_capital']:.2f} "
-            f"min_profit={DEMO_MIN_PROFIT_THRESHOLD_PCT:.1f}% dry_run={dry_run} "
+            f"Bot started in {'DEMO' if dry_run else 'LIVE'} mode: capital=${bot_state['starting_capital']:.2f} "
+            f"min_profit={(DEMO_MIN_PROFIT_THRESHOLD_PCT if dry_run else LIVE_MIN_PROFIT_THRESHOLD_PCT):.1f}% dry_run={dry_run} "
             f"trade_mode={requested_trade_mode}",
             "info",
         )
@@ -789,6 +795,7 @@ def connect_wallet():
     try:
         data = request.json or {}
         wallet_address = data.get("address")
+        chain_raw = data.get("chain_id")
         signature = data.get("signature")  # Optional: for verification
         
         if not wallet_address:
@@ -798,13 +805,25 @@ def connect_wallet():
         if not wallet_address.startswith("0x") or len(wallet_address) != 42:
             return jsonify({"success": False, "error": "Invalid BSC wallet address"}), 400
         
+        chain_id = None
+        if chain_raw is not None:
+            try:
+                if isinstance(chain_raw, str) and chain_raw.lower().startswith("0x"):
+                    chain_id = int(chain_raw, 16)
+                else:
+                    chain_id = int(chain_raw)
+            except Exception:
+                return jsonify({"success": False, "error": "Invalid chain_id format"}), 400
+
         bot_state["wallet_connected"] = wallet_address
+        bot_state["wallet_chain_id"] = chain_id
         add_log(f"Wallet connected: {wallet_address[:6]}...{wallet_address[-4:]}", "success")
         
         return jsonify({
             "success": True,
             "message": "Wallet connected",
             "wallet": wallet_address,
+            "chain_id": chain_id,
         })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
@@ -813,6 +832,7 @@ def connect_wallet():
 def disconnect_wallet():
     """Disconnect the wallet."""
     bot_state["wallet_connected"] = None
+    bot_state["wallet_chain_id"] = None
     add_log("Wallet disconnected", "info")
     return jsonify({"success": True, "message": "Wallet disconnected"})
 
@@ -822,6 +842,7 @@ def get_current_wallet():
     return jsonify({
         "success": True,
         "wallet": bot_state["wallet_connected"],
+        "chain_id": bot_state.get("wallet_chain_id"),
     })
 
 # ============================================
