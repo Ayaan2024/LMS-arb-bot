@@ -664,7 +664,11 @@ export default function MobileDashboard() {
   const connectWallet = async () => {
     const ethereum = (window as any).ethereum;
     if (!ethereum) {
-      setWalletError("Wallet provider not found.");
+      const help = "Wallet not detected in this browser. Open this site inside MetaMask or Trust Wallet app browser, then tap Connect Wallet again.";
+      setWalletError(help);
+      if (typeof window !== "undefined") {
+        window.alert(help);
+      }
       return;
     }
 
