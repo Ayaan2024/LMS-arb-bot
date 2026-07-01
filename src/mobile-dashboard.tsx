@@ -1078,6 +1078,24 @@ export default function MobileDashboard() {
           0% { background-position: 0% 50%; }
           100% { background-position: 200% 50%; }
         }
+        @keyframes engineSpin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        @keyframes enginePulse {
+          0%, 100% { transform: scale(1); opacity: 0.85; }
+          50% { transform: scale(1.2); opacity: 1; }
+        }
+        @keyframes engineFlow {
+          0% { transform: translateX(-130%); opacity: 0; }
+          15% { opacity: 1; }
+          85% { opacity: 1; }
+          100% { transform: translateX(130%); opacity: 0; }
+        }
+        @keyframes affiliateBeacon {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(14, 116, 144, 0.20); }
+          50% { box-shadow: 0 0 0 8px rgba(14, 116, 144, 0.03); }
+        }
         .trade-row { animation: fadeIn 0.3s ease; }
         ::-webkit-scrollbar { display: none; }
       `}</style>
@@ -1215,9 +1233,28 @@ export default function MobileDashboard() {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      fontSize: 17,
+                      fontSize: 18,
+                      position: "relative",
+                      overflow: "hidden",
                     }}>
-                      ∿
+                      <span style={{
+                        display: "inline-flex",
+                        animation: running ? "engineSpin 1.8s linear infinite" : "none",
+                        transformOrigin: "50% 50%",
+                        filter: running ? "drop-shadow(0 0 6px rgba(34,211,238,0.55))" : "none",
+                      }}>
+                        ⚙
+                      </span>
+                      <span style={{
+                        position: "absolute",
+                        right: 5,
+                        bottom: 5,
+                        width: 5,
+                        height: 5,
+                        borderRadius: "50%",
+                        background: running ? "#4ade80" : "#334155",
+                        animation: running ? "enginePulse 1.2s ease-in-out infinite" : "none",
+                      }} />
                     </div>
                     <div style={{ fontSize: 13, fontWeight: 700, color: "#f8fafc" }}>Bot Engine</div>
                   </div>
@@ -1310,6 +1347,7 @@ export default function MobileDashboard() {
                     background: "#0b1220",
                     border: "1px solid #1f2937",
                     overflow: "hidden",
+                    position: "relative",
                   }}>
                     <div style={{
                       height: "100%",
@@ -1323,6 +1361,19 @@ export default function MobileDashboard() {
                       transition: "width 0.25s ease",
                       boxShadow: running ? `0 0 10px ${activeStage.color}88` : "none",
                     }} />
+                    {running && (
+                      <span style={{
+                        position: "absolute",
+                        top: 0,
+                        left: "50%",
+                        width: "28%",
+                        height: "100%",
+                        borderRadius: 999,
+                        background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.38), transparent)",
+                        animation: "engineFlow 1.2s linear infinite",
+                        pointerEvents: "none",
+                      }} />
+                    )}
                   </div>
                 </div>
 
@@ -1710,92 +1761,6 @@ export default function MobileDashboard() {
                 </div>
               ))}
             </div>
-
-            {/* ── AFFILIATE LINK CARD ── */}
-            <div style={{
-              background: "linear-gradient(135deg, #0b1a2e, #0d1424)",
-              border: "1px solid #1e3a5f",
-              borderRadius: 16,
-              padding: 16,
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                <div style={{
-                  width: 36, height: 36, borderRadius: 10,
-                  background: "linear-gradient(135deg, #0b2036, #164e63)",
-                  border: "1px solid #164e63",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 18,
-                }}>🤝</div>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: "#38bdf8" }}>Affiliate Link</div>
-                  <div style={{ fontSize: 11, color: "#64748b" }}>Share and earn 5% on every referral cycle profit</div>
-                </div>
-              </div>
-
-              <div style={{
-                background: "#080c18",
-                border: "1px solid #1e3a5f",
-                borderRadius: 8,
-                padding: "10px 12px",
-                fontSize: 12,
-                color: "#94a3b8",
-                wordBreak: "break-all" as const,
-                marginBottom: 10,
-                lineHeight: 1.6,
-              }}>
-                {walletAddress
-                  ? `${APP_BASE_URL}/ref/${walletAddress.slice(2, 10)}`
-                  : "Connect your wallet to generate your referral link"}
-              </div>
-
-              <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  onClick={() => {
-                    if (!walletAddress) return;
-                    const link = `${APP_BASE_URL}/ref/${walletAddress.slice(2, 10)}`;
-                    navigator.clipboard?.writeText(link).then(() => {
-                      setRefCopied(true);
-                      setTimeout(() => setRefCopied(false), 2000);
-                    });
-                  }}
-                  style={{
-                    flex: 1, border: "none", borderRadius: 10, cursor: walletAddress ? "pointer" : "not-allowed",
-                    background: refCopied
-                      ? "linear-gradient(135deg, #052e16, #166534)"
-                      : "linear-gradient(135deg, #334155, #475569)",
-                    color: "#fff", fontSize: 12, fontWeight: 700, padding: "10px 0",
-                    opacity: walletAddress ? 1 : 0.5,
-                    transition: "background 0.3s",
-                  }}
-                >
-                  {refCopied ? "✅ Copied!" : "📋 Copy Link"}
-                </button>
-                <button
-                  onClick={() => {
-                    if (!walletAddress) return;
-                    const code = walletAddress.slice(2, 10);
-                    const link = `${APP_BASE_URL}/ref/${code}`;
-                    const text = `Join LMS Abritage Bot — earn on BSC DeFi arbitrage!\n${link}`;
-                    if (navigator.share) {
-                      navigator.share({ title: "LMS Abritage Bot", text, url: link }).catch(() => {});
-                    } else {
-                      navigator.clipboard?.writeText(`${text}`).then(() => {
-                        setRefCopied(true);
-                        setTimeout(() => setRefCopied(false), 2000);
-                      });
-                    }
-                  }}
-                  style={{
-                    flex: 1, border: "none", borderRadius: 10, cursor: walletAddress ? "pointer" : "not-allowed",
-                    background: "linear-gradient(135deg, #0c4a6e, #0e7490)",
-                    color: "#fff", fontSize: 12, fontWeight: 700, padding: "10px 0",
-                    opacity: walletAddress ? 1 : 0.5,
-                  }}
-                >
-                  📣 Share
-                </button>
-              </div>
-            </div>
           </div>
         )}
 
@@ -1945,7 +1910,24 @@ export default function MobileDashboard() {
               borderRadius: 16,
               padding: "14px 16px",
             }}>
-              <div style={{ fontSize: 18, fontWeight: 800, color: "#f8fafc" }}>🤝 Affiliate Program</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: 999,
+                  border: "1px solid #1e3a5f",
+                  background: "radial-gradient(circle at 35% 35%, #22d3ee, #0f172a)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#e0f2fe",
+                  fontSize: 14,
+                  animation: "affiliateBeacon 2.8s ease-in-out infinite",
+                }}>
+                  ◉
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: "#f8fafc" }}>Affiliate Program</div>
+              </div>
               <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>Earn 5% commission on every cycle profit your referrals generate.</div>
             </div>
 
