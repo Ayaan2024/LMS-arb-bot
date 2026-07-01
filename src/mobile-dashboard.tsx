@@ -1625,21 +1625,6 @@ export default function MobileDashboard() {
                 {!running && (
                   <div style={{
                     marginBottom: 10,
-                    padding: "8px 10px",
-                    borderRadius: 10,
-                    border: "1px solid #1e293b",
-                    background: "#22110a",
-                    color: "#fdba74",
-                    fontSize: 11,
-                    fontWeight: 600,
-                  }}>
-                    Live mode selected: arm live mode first, then start within the arm window.
-                  </div>
-                )}
-
-                {!running && (
-                  <div style={{
-                    marginBottom: 10,
                     borderRadius: 12,
                     border: "1px solid #7c2d12",
                     background: "linear-gradient(135deg, #1a0f09, #22110a)",
