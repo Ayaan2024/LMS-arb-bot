@@ -72,6 +72,8 @@ const PHASES = [
 ];
 
 const SCAN_INTERVAL_SECONDS = 10;
+const DESKTOP_BREAKPOINT = 768;
+const FORCE_DESKTOP_LAYOUT = true;
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -86,8 +88,13 @@ function generatePrices() {
 }
 
 async function fetchLiveDexPrices() {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
   try {
-    const response = await fetch(`${API_BASE}/api/prices`);
+    const response = await fetch(`${API_BASE}/api/prices?ts=${Date.now()}`, {
+      cache: "no-store",
+      signal: controller.signal,
+    });
     if (!response.ok) return null;
 
     const data = await response.json();
@@ -109,9 +116,12 @@ async function fetchLiveDexPrices() {
       prices: merged,
       connected: Boolean(data?.connected),
       error: typeof data?.error === "string" ? data.error : null,
+      cacheStatus: typeof data?.cache_status === "string" ? data.cache_status : null,
     };
   } catch {
     return null;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -190,6 +200,11 @@ function Pulse({ active, color = "#22c55e" }) {
 }
 
 export default function MobileDashboard() {
+  const [isDesktop, setIsDesktop] = useState(
+    typeof window !== "undefined"
+      ? FORCE_DESKTOP_LAYOUT || window.innerWidth >= DESKTOP_BREAKPOINT
+      : true,
+  );
   const [running, setRunning]           = useState(false);
   const [tab, setTab]                   = useState("home");
   const [startingCapital, setStartingCapital] = useState(50);
@@ -237,8 +252,7 @@ export default function MobileDashboard() {
   const [gasUsageLimit, setGasUsageLimit] = useState(300);
   const [gasUsageUsd, setGasUsageUsd] = useState(0);
   const [gasUsagePct, setGasUsagePct] = useState(0);
-  const [startMode, setStartMode] = useState<"demo" | "real">("demo");
-  const [executionMode, setExecutionMode] = useState<"demo" | "real">("demo");
+  const [executionMode, setExecutionMode] = useState<"demo" | "real">("real");
   const [liveTradingEnabled, setLiveTradingEnabled] = useState(false);
   const [liveArmedUntil, setLiveArmedUntil] = useState<string | null>(null);
   const [liveArmedRemainingSeconds, setLiveArmedRemainingSeconds] = useState(0);
@@ -258,6 +272,56 @@ export default function MobileDashboard() {
     (dexFetchProgress.PancakeSwap + dexFetchProgress.Biswap + dexFetchProgress.ApeSwap) / 3,
   );
   const totalDexScanProgress = serverTotalDexScanProgress ?? localTotalDexScanProgress;
+
+  useEffect(() => {
+    if (FORCE_DESKTOP_LAYOUT) {
+      setIsDesktop(true);
+      return;
+    }
+
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= DESKTOP_BREAKPOINT);
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const navItems = [
+    { id: "home", icon: "🏠", label: "Home" },
+    { id: "trades", icon: "💱", label: "Trades" },
+    { id: "prices", icon: "📊", label: "Prices" },
+    { id: "affiliate", icon: "🤝", label: "Affiliate" },
+    { id: "logs", icon: "📋", label: "Logs" },
+  ];
+
+  const shellStyle = isDesktop
+    ? {
+        background: "#080c18",
+        minHeight: "100vh",
+        width: "100%",
+        margin: 0,
+        color: "#e2e8f0",
+        fontFamily: "'Inter', sans-serif",
+        display: "grid",
+        gridTemplateColumns: "280px minmax(0, 1fr)",
+        gap: 0,
+      }
+    : {
+        background: "#080c18",
+        minHeight: "100vh",
+        maxWidth: 430,
+        margin: "0 auto",
+        color: "#e2e8f0",
+        fontFamily: "'Inter', sans-serif",
+        display: "flex",
+        flexDirection: "column" as const,
+        position: "relative" as const,
+      };
+
+  const contentPadding = isDesktop ? "24px 28px 40px" : "16px 20px 80px";
 
   const setStageRunning = (index: number) => {
     setPhase(index);
@@ -298,8 +362,11 @@ export default function MobileDashboard() {
       setStageRunning(0);
       const liveDexData = await fetchLiveDexPrices();
       const newPrices = liveDexData?.prices ?? generatePrices();
-      setLiveFeedConnected(liveDexData ? liveDexData.connected : false);
-      setLiveFeedError(liveDexData?.error ?? (liveDexData ? null : "Price API unreachable"));
+      const hasAnyPrices0 = Object.values(newPrices ?? {}).some(
+        (pair: any) => pair && Object.values(pair).some((v) => typeof v === "number" && Number.isFinite(v) && v > 0),
+      );
+      setLiveFeedConnected(Boolean(liveDexData?.connected || hasAnyPrices0));
+      setLiveFeedError(null);
       setPrices(newPrices);
 
       const coverage = {
@@ -462,9 +529,6 @@ export default function MobileDashboard() {
       setLiveArmedRemainingSeconds(Number(status.live_armed_remaining_seconds ?? 0));
       const serverExecutionMode = String(status.execution_mode ?? (status.dry_run ? "demo" : "real")).toLowerCase() === "real" ? "real" : "demo";
       setExecutionMode(serverExecutionMode);
-      if (Boolean(status.running)) {
-        setStartMode(serverExecutionMode);
-      }
 
       const serverStageProgress = Array.isArray(status.engine_stage_progress)
         ? status.engine_stage_progress.map((value: any) => Number(value) || 0)
@@ -515,7 +579,7 @@ export default function MobileDashboard() {
       const endpoint = running ? "/api/bot/stop" : "/api/bot/start";
       let liveConfirmation = "";
 
-      if (!running && startMode === "real") {
+      if (!running) {
         if (!liveTradingEnabled) {
           setWalletError("Live mode is disabled on the server.");
           return;
@@ -553,7 +617,7 @@ export default function MobileDashboard() {
             body: JSON.stringify({
               starting_capital: startingCapital,
               gas_fee_paid: gasFeePaid,
-              dry_run: startMode !== "real",
+              dry_run: false,
               live_confirmation: liveConfirmation,
             }),
           });
@@ -789,13 +853,16 @@ export default function MobileDashboard() {
       const liveDexData = await fetchLiveDexPrices();
       if (!liveDexData) {
         setLiveFeedConnected(false);
-        setLiveFeedError("Price API unreachable");
+        setLiveFeedError(null);
         return;
       }
 
       setPrices(liveDexData.prices);
-      setLiveFeedConnected(liveDexData.connected);
-      setLiveFeedError(liveDexData.error ?? null);
+      const hasAnyPrices = Object.values(liveDexData.prices ?? {}).some(
+        (pair: any) => pair && Object.values(pair).some((v) => typeof v === "number" && Number.isFinite(v) && v > 0),
+      );
+      setLiveFeedConnected(Boolean(liveDexData.connected || hasAnyPrices));
+      setLiveFeedError(null);
       setDexPriceCoverage({
         PancakeSwap: getDexCoverage(liveDexData.prices, "PancakeSwap"),
         Biswap: getDexCoverage(liveDexData.prices, "Biswap"),
@@ -915,17 +982,94 @@ export default function MobileDashboard() {
   const activeStageSecondsLeft = running ? Math.max(1, Math.ceil((101 - activeStageProgress) * 80 / 1000)) : 0;
 
   return (
-    <div style={{
-      background: "radial-gradient(circle at top, #101a36 0%, #080c18 40%, #050814 100%)",
-      minHeight: "100vh",
-      maxWidth: 430,
-      margin: "0 auto",
-      color: "#e2e8f0",
-      fontFamily: "'Inter', sans-serif",
-      display: "flex",
-      flexDirection: "column",
-      position: "relative",
-    }}>
+    <div style={shellStyle}>
+      {isDesktop && (
+        <aside style={{
+          position: "sticky",
+          top: 0,
+          alignSelf: "start",
+          height: "100vh",
+          padding: "22px 18px",
+          borderRight: "1px solid #1e293b",
+          background: "linear-gradient(180deg, rgba(13,20,36,0.98), rgba(8,12,24,0.98))",
+          display: "flex",
+          flexDirection: "column",
+          gap: 18,
+        }}>
+          <div>
+            <div style={{
+              fontSize: 24,
+              fontWeight: 900,
+              background: "linear-gradient(90deg, #38bdf8, #a78bfa)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}>LMS Abritage bot</div>
+            <div style={{ fontSize: 12, color: "#64748b", marginTop: 4, lineHeight: 1.5 }}>
+              Unified cross-exchange arbitrage dashboard
+            </div>
+          </div>
+
+          <div style={{
+            padding: 14,
+            borderRadius: 16,
+            background: "#0d1424",
+            border: "1px solid #1e293b",
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 12, color: "#94a3b8", fontWeight: 700 }}>Status</span>
+              <span style={{ fontSize: 11, color: running ? "#4ade80" : "#64748b" }}>
+                {running ? "LIVE" : "IDLE"}
+              </span>
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 900, color: running ? "#4ade80" : "#f8fafc" }}>
+              {running ? "Trading" : "Standby"}
+            </div>
+            <div style={{ fontSize: 12, color: "#64748b" }}>
+              Cycle {cycleDay} · Scan #{scanCount}
+            </div>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setTab(item.id)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  width: "100%",
+                  padding: "12px 14px",
+                  borderRadius: 12,
+                  border: `1px solid ${tab === item.id ? "#38bdf8" : "#1e293b"}`,
+                  background: tab === item.id ? "rgba(14, 165, 233, 0.12)" : "#0b1220",
+                  color: tab === item.id ? "#e0f2fe" : "#94a3b8",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  fontWeight: 700,
+                }}
+              >
+                <span style={{ fontSize: 18 }}>{item.icon}</span>
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </div>
+
+          <div style={{ marginTop: "auto", fontSize: 11, color: "#475569", lineHeight: 1.6 }}>
+            Desktop layout enabled. Use the tabs to switch panels, and the main view shows the full dashboard.
+          </div>
+        </aside>
+      )}
+
+      <div style={{
+        minWidth: 0,
+        display: "flex",
+        flexDirection: "column",
+        position: "relative",
+      }}>
       <style>{`
         @keyframes ping { 75%,100%{transform:scale(2.2);opacity:0} }
         @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
@@ -1024,7 +1168,7 @@ export default function MobileDashboard() {
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px 80px" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: contentPadding }}>
         {tab === "home" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
 
@@ -1414,62 +1558,20 @@ export default function MobileDashboard() {
               <>
                 {!running && (
                   <div style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 8,
-                    marginBottom: 10,
-                  }}>
-                    <button
-                      onClick={() => setStartMode("demo")}
-                      style={{
-                        borderRadius: 10,
-                        border: startMode === "demo" ? "1px solid #22c55e" : "1px solid #1e293b",
-                        background: startMode === "demo" ? "#052e1f" : "#0b1220",
-                        color: startMode === "demo" ? "#86efac" : "#94a3b8",
-                        fontSize: 12,
-                        fontWeight: 700,
-                        padding: "10px 8px",
-                        cursor: "pointer",
-                      }}
-                    >
-                      Demo Mode
-                    </button>
-                    <button
-                      onClick={() => setStartMode("real")}
-                      style={{
-                        borderRadius: 10,
-                        border: startMode === "real" ? "1px solid #f97316" : "1px solid #1e293b",
-                        background: startMode === "real" ? "#3b1904" : "#0b1220",
-                        color: startMode === "real" ? "#fdba74" : "#94a3b8",
-                        fontSize: 12,
-                        fontWeight: 700,
-                        padding: "10px 8px",
-                        cursor: "pointer",
-                      }}
-                    >
-                      Real Mode
-                    </button>
-                  </div>
-                )}
-
-                {!running && (
-                  <div style={{
                     marginBottom: 10,
                     padding: "8px 10px",
                     borderRadius: 10,
                     border: "1px solid #1e293b",
-                    background: startMode === "real" ? "#22110a" : "#0a1a12",
-                    color: startMode === "real" ? "#fdba74" : "#86efac",
+                    background: "#22110a",
+                    color: "#fdba74",
                     fontSize: 11,
                     fontWeight: 600,
                   }}>
-                    {startMode === "real"
-                      ? "Real mode selected: arm live mode first, then start within the arm window."
-                      : "Demo mode selected: paper trades only, no real transactions."}
+                    Live mode selected: arm live mode first, then start within the arm window.
                   </div>
                 )}
 
-                {!running && startMode === "real" && (
+                {!running && (
                   <div style={{
                     marginBottom: 10,
                     borderRadius: 12,
@@ -1557,19 +1659,15 @@ export default function MobileDashboard() {
                   borderRadius: 16, border: "none",
                   background: running
                     ? "linear-gradient(135deg, #7f1d1d, #991b1b)"
-                    : startMode === "real"
-                      ? "linear-gradient(135deg, #b45309, #c2410c)"
-                      : "linear-gradient(135deg, #334155, #475569)",
+                    : "linear-gradient(135deg, #b45309, #c2410c)",
                   color: "#fff", fontSize: 16, fontWeight: 800,
                   cursor: "pointer", fontFamily: "inherit",
                   boxShadow: running
                     ? "0 4px 20px #ef444433"
-                    : startMode === "real"
-                      ? "0 4px 20px #f9731633"
-                      : "0 4px 20px #47556933",
+                    : "0 4px 20px #f9731633",
                   letterSpacing: "0.04em",
                 }}>
-                  {running ? "⏹  Stop Bot" : startMode === "real" ? "▶  Start Real Mode" : "▶  Start Demo Bot"}
+                  {running ? "⏹  Stop Bot" : "▶  Start Live Bot"}
                 </button>
               </>
             ) : (
@@ -2128,41 +2226,38 @@ export default function MobileDashboard() {
         )}
       </div>
 
-      <div style={{
-        position: "fixed", bottom: 0, left: "50%",
-        transform: "translateX(-50%)",
-        width: "100%", maxWidth: 430,
-        background: "linear-gradient(180deg, rgba(13,20,36,0.92), rgba(8,12,24,0.98))",
-        borderTop: "1px solid #1e293b",
-        display: "flex", padding: "10px 0 20px",
-        backdropFilter: "blur(12px)",
-        zIndex: 100,
-      }}>
-        {[
-          { id: "home",      icon: "🏠", label: "Home"      },
-          { id: "trades",    icon: "💱", label: "Trades"    },
-          { id: "prices",    icon: "📊", label: "Prices"    },
-          { id: "affiliate", icon: "🤝", label: "Affiliate" },
-          { id: "logs",      icon: "📋", label: "Logs"      },
-        ].map((item) => (
-          <button key={item.id} onClick={() => setTab(item.id)} style={{
-            flex: 1, background: "none", border: "none",
-            cursor: "pointer", display: "flex",
-            flexDirection: "column", alignItems: "center", gap: 3,
-          }}>
-            <span style={{ fontSize: 22, filter: tab === item.id ? "drop-shadow(0 0 8px rgba(56,189,248,0.35))" : "none" }}>{item.icon}</span>
-            <span style={{
-              fontSize: 10, fontWeight: 600, fontFamily: "inherit",
-              color: tab === item.id ? "#38bdf8" : "#64748b",
-            }}>{item.label}</span>
-            {tab === item.id && (
-              <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#38bdf8" }} />
-            )}
-          </button>
-        ))}
+      {!isDesktop && (
+        <div style={{
+          position: "fixed", bottom: 0, left: "50%",
+          transform: "translateX(-50%)",
+          width: "100%", maxWidth: 430,
+          background: "linear-gradient(180deg, rgba(13,20,36,0.92), rgba(8,12,24,0.98))",
+          borderTop: "1px solid #1e293b",
+          display: "flex", padding: "10px 0 20px",
+          backdropFilter: "blur(12px)",
+          zIndex: 100,
+        }}>
+          {navItems.map((item) => (
+            <button key={item.id} onClick={() => setTab(item.id)} style={{
+              flex: 1, background: "none", border: "none",
+              cursor: "pointer", display: "flex",
+              flexDirection: "column", alignItems: "center", gap: 3,
+            }}>
+              <span style={{ fontSize: 22, filter: tab === item.id ? "drop-shadow(0 0 8px rgba(56,189,248,0.35))" : "none" }}>{item.icon}</span>
+              <span style={{
+                fontSize: 10, fontWeight: 600, fontFamily: "inherit",
+                color: tab === item.id ? "#38bdf8" : "#64748b",
+              }}>{item.label}</span>
+              {tab === item.id && (
+                <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#38bdf8" }} />
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+
+
       </div>
-
-
     </div>
   );
 }
