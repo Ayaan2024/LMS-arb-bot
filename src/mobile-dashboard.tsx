@@ -73,7 +73,7 @@ const PHASES = [
 
 const SCAN_INTERVAL_SECONDS = 10;
 const DESKTOP_BREAKPOINT = 768;
-const FORCE_DESKTOP_LAYOUT = true;
+const FORCE_DESKTOP_LAYOUT = false;
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -274,13 +274,9 @@ export default function MobileDashboard() {
   const totalDexScanProgress = serverTotalDexScanProgress ?? localTotalDexScanProgress;
 
   useEffect(() => {
-    if (FORCE_DESKTOP_LAYOUT) {
-      setIsDesktop(true);
-      return;
-    }
-
     const handleResize = () => {
-      setIsDesktop(window.innerWidth >= DESKTOP_BREAKPOINT);
+      const desktop = FORCE_DESKTOP_LAYOUT || window.innerWidth >= DESKTOP_BREAKPOINT;
+      setIsDesktop(desktop);
     };
 
     handleResize();
@@ -322,6 +318,8 @@ export default function MobileDashboard() {
       };
 
   const contentPadding = isDesktop ? "24px 28px 40px" : "16px 20px 80px";
+  const twoColLayout = isDesktop ? "1fr 1fr" : "1fr";
+  const threeColLayout = isDesktop ? "1fr 1fr 1fr" : "1fr";
 
   const setStageRunning = (index: number) => {
     setPhase(index);
@@ -1100,16 +1098,18 @@ export default function MobileDashboard() {
         ::-webkit-scrollbar { display: none; }
       `}</style>
 
-      <div style={{
-        padding: "10px 20px 6px",
-        display: "flex", justifyContent: "space-between", alignItems: "center",
-        fontSize: 11, color: "#475569",
-      }}>
-        <span>{new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          <span>📶</span><span>🔋</span>
+      {!isDesktop && (
+        <div style={{
+          padding: "10px 20px 6px",
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          fontSize: 11, color: "#475569",
+        }}>
+          <span>{new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <span>📶</span><span>🔋</span>
+          </div>
         </div>
-      </div>
+      )}
 
       <div style={{
         padding: "10px 20px 18px",
@@ -1448,7 +1448,7 @@ export default function MobileDashboard() {
 
               <div style={{
                 display: "grid",
-                gridTemplateColumns: "1fr 1fr",
+                gridTemplateColumns: twoColLayout,
                 gap: 8,
                 marginBottom: 12,
               }}>
@@ -1581,7 +1581,7 @@ export default function MobileDashboard() {
                 paddingTop: 12,
                 borderTop: "1px solid #1e293b",
                 display: "grid",
-                gridTemplateColumns: "1fr 1fr",
+                gridTemplateColumns: twoColLayout,
                 gap: 8,
               }}>
                 <div style={{
@@ -1668,7 +1668,7 @@ export default function MobileDashboard() {
                         Auto re-arming live window...
                       </div>
                     )}
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: twoColLayout, gap: 8 }}>
                       <button
                         onClick={() => void handleArmLiveMode()}
                         disabled={!liveTradingEnabled}
@@ -1677,9 +1677,10 @@ export default function MobileDashboard() {
                           border: "1px solid #7c2d12",
                           background: liveTradingEnabled ? "#7c2d12" : "#1f2937",
                           color: "#fff",
-                          fontSize: 11,
+                          fontSize: isDesktop ? 11 : 13,
                           fontWeight: 700,
-                          padding: "8px 10px",
+                          padding: isDesktop ? "8px 10px" : "11px 12px",
+                          minHeight: 44,
                           cursor: liveTradingEnabled ? "pointer" : "not-allowed",
                           opacity: liveTradingEnabled ? 1 : 0.65,
                         }}
@@ -1693,9 +1694,10 @@ export default function MobileDashboard() {
                           border: "1px solid #334155",
                           background: "#0f172a",
                           color: "#cbd5e1",
-                          fontSize: 11,
+                          fontSize: isDesktop ? 11 : 13,
                           fontWeight: 700,
-                          padding: "8px 10px",
+                          padding: isDesktop ? "8px 10px" : "11px 12px",
+                          minHeight: 44,
                           cursor: "pointer",
                         }}
                       >
@@ -1718,7 +1720,7 @@ export default function MobileDashboard() {
                     : "0 4px 20px #f9731633",
                   letterSpacing: "0.04em",
                 }}>
-                  {running ? "⏹  Stop Bot" : "▶  Start Live Bot"}
+                  {running ? "⏹  Stop Bot" : "▶  Start Real Mode"}
                 </button>
               </>
             ) : (
@@ -1737,7 +1739,7 @@ export default function MobileDashboard() {
             )}
 
             <div style={{
-              display: "grid", gridTemplateColumns: "1fr 1fr",
+              display: "grid", gridTemplateColumns: twoColLayout,
               gap: 8,
             }}>
               {[
@@ -1807,7 +1809,7 @@ export default function MobileDashboard() {
                   </div>
                   {/* Row 3: estimated vs actual profit */}
                   <div style={{
-                    display: "grid", gridTemplateColumns: "1fr 1fr",
+                    display: "grid", gridTemplateColumns: twoColLayout,
                     gap: 6, marginBottom: 6,
                   }}>
                     <div style={{ background: "#080c18", border: "1px solid #1e293b", borderRadius: 8, padding: "6px 10px" }}>
@@ -1932,7 +1934,7 @@ export default function MobileDashboard() {
             </div>
 
             {/* Earnings overview */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: twoColLayout, gap: 8 }}>
               {[
                 { label: "Total Earned", value: `$${affiliateEarnings.toFixed(2)}`, color: "#4ade80" },
                 { label: "Referrals",    value: String(referralCount),               color: "#38bdf8" },
@@ -1978,7 +1980,7 @@ export default function MobileDashboard() {
                 </div>
               ))}
               <div style={{
-                display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
+                display: "grid", gridTemplateColumns: threeColLayout,
                 gap: 8, marginTop: 6,
               }}>
                 {[
@@ -2224,10 +2226,11 @@ export default function MobileDashboard() {
               flex: 1, background: "none", border: "none",
               cursor: "pointer", display: "flex",
               flexDirection: "column", alignItems: "center", gap: 3,
+              minHeight: 52,
             }}>
-              <span style={{ fontSize: 22, filter: tab === item.id ? "drop-shadow(0 0 8px rgba(56,189,248,0.35))" : "none" }}>{item.icon}</span>
+              <span style={{ fontSize: 24, filter: tab === item.id ? "drop-shadow(0 0 8px rgba(56,189,248,0.35))" : "none" }}>{item.icon}</span>
               <span style={{
-                fontSize: 10, fontWeight: 600, fontFamily: "inherit",
+                fontSize: 11, fontWeight: 700, fontFamily: "inherit",
                 color: tab === item.id ? "#38bdf8" : "#64748b",
               }}>{item.label}</span>
               {tab === item.id && (
