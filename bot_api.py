@@ -467,6 +467,8 @@ bot_state = {
     "engine_next_scan_seconds": ENGINE_SCAN_INTERVAL_SECONDS,
     "trade_execution_mode": TRADE_EXECUTION_MODE,
     "last_trade_mode": "demo",
+    "subscription_status": "expired",
+    "renew_subscription_required": True,
 }
 
 bot_process_thread = None
@@ -558,6 +560,25 @@ def _update_engine_next_scan_seconds() -> None:
         bot_state["engine_next_scan_seconds"] = interval
 
 
+def _enforce_subscription_window() -> None:
+    """Stop the bot automatically once the active subscription window expires."""
+    try:
+        cycle_end = datetime.fromisoformat(str(bot_state.get("cycle_end")))
+        remaining = int((cycle_end - datetime.now()).total_seconds())
+    except Exception:
+        remaining = 0
+
+    bot_state["cycle_remaining_seconds"] = max(0, remaining)
+    bot_state["subscription_status"] = "active" if remaining > 0 else "expired"
+    bot_state["renew_subscription_required"] = remaining <= 0
+
+    if bot_state.get("running") and remaining <= 0:
+        bot_state["running"] = False
+        bot_running_event.clear()
+        _reset_engine_state("Subscription ended. Bot stopped automatically.")
+        add_log("Subscription ended. Bot stopped automatically.", "info")
+
+
 def _recompute_subscription_fields() -> None:
     """Keep subscription-style metrics in sync with current bot state."""
     net_profit = max(0.0, float(bot_state.get("cycle_profit", 0.0)) - float(bot_state.get("cycle_loss", 0.0)))
@@ -572,12 +593,7 @@ def _recompute_subscription_fields() -> None:
     bot_state["gas_usage_usd"] = round(gas_usage_usd, 2)
     bot_state["gas_usage_pct"] = round(max(0.0, min(100.0, gas_usage_pct)), 2)
 
-    try:
-        cycle_end = datetime.fromisoformat(str(bot_state.get("cycle_end")))
-        remaining = int((cycle_end - datetime.now()).total_seconds())
-        bot_state["cycle_remaining_seconds"] = max(0, remaining)
-    except Exception:
-        bot_state["cycle_remaining_seconds"] = 0
+    _enforce_subscription_window()
 
     _update_engine_next_scan_seconds()
 
@@ -992,6 +1008,7 @@ def background_trade_engine():
 
     while True:
         time.sleep(ENGINE_SCAN_INTERVAL_SECONDS)
+        _enforce_subscription_window()
         if not bot_state["running"]:
             continue
 
@@ -1231,6 +1248,7 @@ def background_uptime_counter():
     """Background thread to increment uptime when bot is running."""
     while True:
         time.sleep(1)
+        _enforce_subscription_window()
         if bot_state["running"]:
             bot_state["uptime_seconds"] += 1
 

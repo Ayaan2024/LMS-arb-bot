@@ -253,18 +253,10 @@ export default function MobileDashboard() {
   const [gasUsageUsd, setGasUsageUsd] = useState(0);
   const [gasUsagePct, setGasUsagePct] = useState(0);
   const [executionMode, setExecutionMode] = useState<"demo" | "real">("real");
-  const [liveTradingEnabled, setLiveTradingEnabled] = useState(false);
-  const [liveArmedUntil, setLiveArmedUntil] = useState<string | null>(null);
-  const [liveArmedRemainingSeconds, setLiveArmedRemainingSeconds] = useState(0);
-  const [liveUnlockPhrase, setLiveUnlockPhrase] = useState("");
-  const [autoRearmEnabled, setAutoRearmEnabled] = useState(true);
-  const [isAutoRearming, setIsAutoRearming] = useState(false);
   const [stageLoopTick, setStageLoopTick] = useState(0);
   const intervalRef = useRef(null);
   const countRef    = useRef(null);
   const scanBusyRef = useRef(false);
-  const autoRearmLastAttemptRef = useRef(0);
-  const autoRearmPhraseWarnedRef = useRef(false);
 
   const opps = findOpportunities(prices);
   const displayedBestOpportunity = bestOpportunity ?? opps[0] ?? null;
@@ -522,9 +514,6 @@ export default function MobileDashboard() {
       setGasUsageLimit(Number(status.gas_usage_limit ?? 300));
       setGasUsageUsd(Number(status.gas_usage_usd ?? 0));
       setGasUsagePct(Number(status.gas_usage_pct ?? 0));
-      setLiveTradingEnabled(Boolean(status.live_trading_enabled));
-      setLiveArmedUntil(typeof status.live_armed_until === "string" ? status.live_armed_until : null);
-      setLiveArmedRemainingSeconds(Number(status.live_armed_remaining_seconds ?? 0));
       const serverExecutionMode = String(status.execution_mode ?? (status.dry_run ? "demo" : "real")).toLowerCase() === "real" ? "real" : "demo";
       setExecutionMode(serverExecutionMode);
 
@@ -575,37 +564,6 @@ export default function MobileDashboard() {
   const handleBotToggle = async () => {
     try {
       const endpoint = running ? "/api/bot/stop" : "/api/bot/start";
-      let liveConfirmation = "";
-
-      if (!running) {
-        if (!liveTradingEnabled) {
-          setWalletError("Live mode is disabled on the server.");
-          return;
-        }
-
-        if (liveArmedRemainingSeconds <= 0) {
-          setWalletError("Arm live mode first before starting real mode.");
-          return;
-        }
-
-        const cachedPhrase = liveUnlockPhrase.trim();
-        if (cachedPhrase) {
-          liveConfirmation = cachedPhrase;
-        } else {
-          const input = window.prompt(
-            "Enter live confirmation phrase to start Real Mode:",
-            "",
-          );
-
-          if (!input || !input.trim()) {
-            setWalletError("Real mode not started. Confirmation phrase is required.");
-            return;
-          }
-
-          liveConfirmation = input.trim();
-          setLiveUnlockPhrase(liveConfirmation);
-        }
-      }
 
       const res = await fetch(`${API_BASE}${endpoint}`, running
         ? { method: "POST", headers: { "Content-Type": "application/json" } }
@@ -616,7 +574,6 @@ export default function MobileDashboard() {
               starting_capital: startingCapital,
               gas_fee_paid: gasFeePaid,
               dry_run: false,
-              live_confirmation: liveConfirmation,
             }),
           });
 
@@ -636,77 +593,6 @@ export default function MobileDashboard() {
     } catch {
       setWalletError("Unable to control bot right now.");
     }
-  };
-
-  const handleArmLiveMode = async () => {
-    try {
-      const defaultPhrase = liveUnlockPhrase || "I UNDERSTAND LIVE TRADING RISKS";
-      const armPhraseInput = window.prompt(
-        "Type live arm phrase to arm Real Mode:",
-        defaultPhrase,
-      );
-
-      if (!armPhraseInput || !armPhraseInput.trim()) {
-        return;
-      }
-
-      const windowInput = window.prompt("Arm window in seconds (30-3600):", "600");
-      const parsedWindow = Number(windowInput ?? "600");
-      const windowSeconds = Number.isFinite(parsedWindow)
-        ? Math.max(30, Math.min(3600, Math.round(parsedWindow)))
-        : 600;
-
-      const res = await fetch(`${API_BASE}/api/bot/arm-live`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          arm_code: armPhraseInput.trim(),
-          window_seconds: windowSeconds,
-        }),
-      });
-
-      if (!res.ok) {
-        try {
-          const data = await res.json();
-          setWalletError(String(data?.error || `Arm failed (${res.status})`));
-        } catch {
-          setWalletError(`Arm failed (${res.status})`);
-        }
-        return;
-      }
-
-      setLiveUnlockPhrase(armPhraseInput.trim());
-      setWalletError(null);
-      await syncBotStatus();
-    } catch {
-      setWalletError("Unable to arm live mode right now.");
-    }
-  };
-
-  const handleDisarmLiveMode = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/api/bot/disarm-live`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-
-      if (!res.ok) {
-        setWalletError(`Disarm failed (${res.status})`);
-        return;
-      }
-
-      setWalletError(null);
-      await syncBotStatus();
-    } catch {
-      setWalletError("Unable to disarm live mode right now.");
-    }
-  };
-
-  const formatArmRemaining = (seconds: number) => {
-    const safe = Math.max(0, Math.floor(seconds));
-    const m = Math.floor(safe / 60).toString().padStart(2, "0");
-    const s = (safe % 60).toString().padStart(2, "0");
-    return `${m}:${s}`;
   };
 
   const shortAddress = (address: string) => `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -886,64 +772,6 @@ export default function MobileDashboard() {
 
     return () => clearInterval(activityRef);
   }, []);
-
-  useEffect(() => {
-    if (!autoRearmEnabled || !running || executionMode !== "real" || !liveTradingEnabled) {
-      return;
-    }
-
-    if (liveArmedRemainingSeconds > 60) {
-      autoRearmPhraseWarnedRef.current = false;
-      return;
-    }
-
-    const phrase = liveUnlockPhrase.trim();
-    if (!phrase) {
-      if (!autoRearmPhraseWarnedRef.current) {
-        setWalletError("Live arm is low. Use Arm Live once to store phrase for auto re-arm.");
-        autoRearmPhraseWarnedRef.current = true;
-      }
-      return;
-    }
-
-    const now = Date.now();
-    if (isAutoRearming || (now - autoRearmLastAttemptRef.current) < 30000) {
-      return;
-    }
-
-    autoRearmLastAttemptRef.current = now;
-    setIsAutoRearming(true);
-
-    void (async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/bot/arm-live`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            arm_code: phrase,
-            window_seconds: 600,
-          }),
-        });
-
-        if (res.ok) {
-          setWalletError(null);
-          await syncBotStatus();
-        }
-      } catch {
-        // Keep running; polling and next cycle will retry.
-      } finally {
-        setIsAutoRearming(false);
-      }
-    })();
-  }, [
-    autoRearmEnabled,
-    running,
-    executionMode,
-    liveTradingEnabled,
-    liveArmedRemainingSeconds,
-    liveUnlockPhrase,
-    isAutoRearming,
-  ]);
 
   const formatUptime = () => {
     const h = Math.floor(uptime / 3600).toString().padStart(2, "0");
@@ -1622,91 +1450,6 @@ export default function MobileDashboard() {
 
             {!IS_PUBLIC_VIEW ? (
               <>
-                {!running && (
-                  <div style={{
-                    marginBottom: 10,
-                    borderRadius: 12,
-                    border: "1px solid #7c2d12",
-                    background: "linear-gradient(135deg, #1a0f09, #22110a)",
-                    padding: "10px 12px",
-                  }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: liveTradingEnabled ? "#fdba74" : "#fda4af" }}>
-                        Live Arm Status: {liveTradingEnabled ? (liveArmedRemainingSeconds > 0 ? "ARMED" : "DISARMED") : "SERVER LOCKED"}
-                      </div>
-                      <div style={{ fontSize: 11, color: liveArmedRemainingSeconds > 0 ? "#fde68a" : "#94a3b8" }}>
-                        {liveArmedRemainingSeconds > 0 ? `Window ${formatArmRemaining(liveArmedRemainingSeconds)}` : "Window --:--"}
-                      </div>
-                    </div>
-                    {liveArmedUntil && (
-                      <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 8 }}>
-                        Armed until: {new Date(liveArmedUntil).toLocaleTimeString()}
-                      </div>
-                    )}
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                      <span style={{ fontSize: 10, color: "#94a3b8" }}>
-                        Auto re-arm when below 01:00
-                      </span>
-                      <button
-                        onClick={() => setAutoRearmEnabled((prev) => !prev)}
-                        style={{
-                          border: "1px solid #334155",
-                          borderRadius: 999,
-                          background: autoRearmEnabled ? "#3f1d0b" : "#0f172a",
-                          color: autoRearmEnabled ? "#fdba74" : "#94a3b8",
-                          padding: "3px 10px",
-                          fontSize: 10,
-                          fontWeight: 700,
-                          cursor: "pointer",
-                        }}
-                      >
-                        {autoRearmEnabled ? "ON" : "OFF"}
-                      </button>
-                    </div>
-                    {isAutoRearming && (
-                      <div style={{ fontSize: 10, color: "#fde68a", marginBottom: 8 }}>
-                        Auto re-arming live window...
-                      </div>
-                    )}
-                    <div style={{ display: "grid", gridTemplateColumns: twoColLayout, gap: 8 }}>
-                      <button
-                        onClick={() => void handleArmLiveMode()}
-                        disabled={!liveTradingEnabled}
-                        style={{
-                          borderRadius: 9,
-                          border: "1px solid #7c2d12",
-                          background: liveTradingEnabled ? "#7c2d12" : "#1f2937",
-                          color: "#fff",
-                          fontSize: isDesktop ? 11 : 13,
-                          fontWeight: 700,
-                          padding: isDesktop ? "8px 10px" : "11px 12px",
-                          minHeight: 44,
-                          cursor: liveTradingEnabled ? "pointer" : "not-allowed",
-                          opacity: liveTradingEnabled ? 1 : 0.65,
-                        }}
-                      >
-                        Arm Live (10m)
-                      </button>
-                      <button
-                        onClick={() => void handleDisarmLiveMode()}
-                        style={{
-                          borderRadius: 9,
-                          border: "1px solid #334155",
-                          background: "#0f172a",
-                          color: "#cbd5e1",
-                          fontSize: isDesktop ? 11 : 13,
-                          fontWeight: 700,
-                          padding: isDesktop ? "8px 10px" : "11px 12px",
-                          minHeight: 44,
-                          cursor: "pointer",
-                        }}
-                      >
-                        Disarm Live
-                      </button>
-                    </div>
-                  </div>
-                )}
-
                 <button onClick={() => void handleBotToggle()} style={{
                   width: "100%", padding: "18px",
                   borderRadius: 16, border: "none",
