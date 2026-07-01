@@ -6,10 +6,9 @@ const PAIRS = ["BNB/USDT", "CAKE/USDT", "ETH/USDT", "XRP/USDT", "BUSD/USDT"];
 // Set VITE_API_URL in .env or Vercel env vars to point at your DigitalOcean VPS.
 // e.g. VITE_API_URL=http://165.232.12.34:5003  or  https://api.lms-arb.app
 const API_BASE: string =
-  (import.meta as any).env?.VITE_API_URL ||
-  (typeof window !== "undefined" && window.location.hostname === "localhost"
+  (typeof window !== "undefined" && window.location.hostname === "localhost")
     ? "http://localhost:5003"
-    : "/api");
+    : "/api";
 
 const APP_BASE_URL: string =
   typeof window !== "undefined" && window.location.origin

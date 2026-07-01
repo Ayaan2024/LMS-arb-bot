@@ -4,10 +4,9 @@
  */
 
 const API_BASE: string =
-  (import.meta as any).env?.VITE_API_URL ||
-  (typeof window !== "undefined" && window.location.hostname === "localhost"
+  (typeof window !== "undefined" && window.location.hostname === "localhost")
     ? "http://localhost:5003"
-    : "/api");
+    : "/api";
 
 export const API = {
   // Status endpoints

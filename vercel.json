@@ -1,8 +1,6 @@
 {
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "http://164.92.241.83:5003/api/$1" }
-  ],
   "routes": [
+    { "src": "/api/(.*)", "dest": "http://164.92.241.83:5003/api/$1" },
     { "handle": "filesystem" },
     { "src": "/.*", "dest": "/index.html" }
   ],
