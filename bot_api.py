@@ -454,6 +454,7 @@ bot_state = {
     "gas_usage_pct": 0.0,
     "cycle_remaining_seconds": 0,
     "dry_run": True,
+    "execution_mode": "demo",
     "gas_gwei": 0.0,
     "dex_scores": {"PancakeSwap": 0, "Biswap": 0, "ApeSwap": 0},
     "engine_stage_index": 0,
@@ -477,6 +478,22 @@ bot_running_event = threading.Event()
 last_trade_key = None
 last_trade_ts = 0.0
 last_execution_mode = "demo"
+
+
+def _coerce_bool(value, default: bool = True) -> bool:
+    """Parse bool values from JSON safely (handles false/0/no/off strings)."""
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"", "none", "null"}:
+            return default
+        return normalized not in {"false", "0", "no", "off"}
+    return bool(value)
 
 
 def _reset_engine_state(idle_status: str = "Engine idle.") -> None:
@@ -690,7 +707,7 @@ def start_bot():
         requested_trade_mode = str(data.get("trade_execution_mode", TRADE_EXECUTION_MODE)).strip().lower()
         if requested_trade_mode not in {"both", "demo_only", "flash_only"}:
             requested_trade_mode = TRADE_EXECUTION_MODE
-        dry_run = bool(requested_dry_run)
+        dry_run = _coerce_bool(requested_dry_run, default=True)
 
         if not dry_run:
             connected_wallet = bot_state.get("wallet_connected")
@@ -699,6 +716,10 @@ def start_bot():
                 return jsonify({"success": False, "error": "Connect wallet before starting live mode"}), 400
             if chain_id != 56:
                 return jsonify({"success": False, "error": "Switch wallet to BSC Mainnet (chain 56) before live mode"}), 400
+            if requested_trade_mode == "demo_only":
+                return jsonify({"success": False, "error": "Live mode cannot run demo_only execution"}), 400
+            if requested_trade_mode == "both":
+                requested_trade_mode = "flash_only"
         
         bot_state["running"] = True
         bot_state["cycle_start"] = datetime.now().isoformat()
@@ -714,6 +735,7 @@ def start_bot():
         bot_state["failed_trades"] = 0
         bot_state["recent_trades"] = []
         bot_state["dry_run"] = dry_run
+        bot_state["execution_mode"] = "demo" if dry_run else "real"
         bot_state["trade_execution_mode"] = requested_trade_mode
         bot_state["last_trade_mode"] = "demo" if dry_run else "flash"
         _reset_engine_state("Starting scan pipeline...")
@@ -806,7 +828,7 @@ def connect_wallet():
             return jsonify({"success": False, "error": "Invalid BSC wallet address"}), 400
         
         chain_id = None
-        if chain_raw is not None:
+        if chain_raw not in (None, ""):
             try:
                 if isinstance(chain_raw, str) and chain_raw.lower().startswith("0x"):
                     chain_id = int(chain_raw, 16)
@@ -853,6 +875,9 @@ def get_current_wallet():
 def simulate_trade():
     """Simulate a trade without executing it (dry-run style)."""
     try:
+        if bot_state.get("running") and not bool(bot_state.get("dry_run", True)):
+            return jsonify({"success": False, "error": "Simulation endpoint disabled while live mode is running"}), 403
+
         data = request.json or {}
         buy_dex = data.get("buy_dex", "PancakeSwap")
         sell_dex = data.get("sell_dex", "Biswap")
@@ -1033,6 +1058,14 @@ def background_trade_engine():
         if not bot_state["running"]:
             continue
 
+        if not bool(bot_state.get("dry_run", True)):
+            if not bot_state.get("wallet_connected") or bot_state.get("wallet_chain_id") != 56:
+                bot_state["running"] = False
+                bot_running_event.clear()
+                _reset_engine_state("Live mode stopped: wallet disconnected or not on BSC Mainnet.")
+                add_log("Live mode stopped automatically because wallet is disconnected or chain is not BSC Mainnet.", "info")
+                continue
+
         bot_state["last_scan"] = datetime.now().isoformat()
         bot_state["engine_scan_interval_seconds"] = ENGINE_SCAN_INTERVAL_SECONDS
         _set_engine_stage_running(0)
@@ -1073,12 +1106,14 @@ def background_trade_engine():
         trade_mode = str(bot_state.get("trade_execution_mode", TRADE_EXECUTION_MODE)).strip().lower()
         if trade_mode not in {"both", "demo_only", "flash_only"}:
             trade_mode = "both"
+        if not dry_run:
+            trade_mode = "flash_only"
         target_net_profit = DEMO_TARGET_NET_PROFIT_USD if dry_run else LIVE_TARGET_NET_PROFIT_USD
         viable_plans = []
 
         def mode_candidates_for_opp(opp_item: dict) -> list[tuple[str, bool]]:
             choices = []
-            if trade_mode in {"both", "demo_only"}:
+            if dry_run and trade_mode in {"both", "demo_only"}:
                 choices.append(("demo", False))
             if trade_mode in {"both", "flash_only"} and bool(opp_item.get("flashLoan")):
                 choices.append(("flash", True))
@@ -1107,7 +1142,7 @@ def background_trade_engine():
                 })
 
         if viable_plans:
-            if trade_mode == "both":
+            if dry_run and trade_mode == "both":
                 preferred_mode = "flash" if last_execution_mode == "demo" else "demo"
                 preferred = [plan for plan in viable_plans if plan["mode"] == preferred_mode]
                 pool = preferred if preferred else viable_plans
@@ -1139,7 +1174,7 @@ def background_trade_engine():
                     })
 
             if relaxed_plans:
-                if trade_mode == "both":
+                if dry_run and trade_mode == "both":
                     preferred_mode = "flash" if last_execution_mode == "demo" else "demo"
                     preferred = [plan for plan in relaxed_plans if plan["mode"] == preferred_mode]
                     pool = preferred if preferred else relaxed_plans
@@ -1160,7 +1195,7 @@ def background_trade_engine():
             add_log("Scan complete — no opportunities above minimum gap", "info")
             continue
 
-        selected_mode = str(best_plan.get("mode", "demo")) if best_plan else "demo"
+        selected_mode = str(best_plan.get("mode", "demo" if dry_run else "flash")) if best_plan else ("demo" if dry_run else "flash")
         trade_key = f"{best.get('pair')}:{best.get('buyOn')}->{best.get('sellOn')}:{selected_mode}"
         now_ts = time.time()
 
